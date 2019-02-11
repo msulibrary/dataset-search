@@ -1,2 +1,2 @@
-# data-index
-Code for the IMLS-funded Institutional Research Data Index project
+# dataset-search
+Code for the IMLS-funded MSU Dataset Search project (formerly named Institutional Research Data Index).
