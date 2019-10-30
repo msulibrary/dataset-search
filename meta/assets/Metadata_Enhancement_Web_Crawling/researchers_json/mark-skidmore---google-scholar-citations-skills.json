@@ -1,0 +1,20 @@
+[
+    {
+        "skill": "public finance",
+        "skill_length": 14,
+        "machine_label": "https://www.wikidata.org/wiki/Q274490",
+        "label_length": 37
+    },
+    {
+        "skill": "urban economics",
+        "skill_length": 15,
+        "machine_label": "https://www.wikidata.org/wiki/Q385256",
+        "label_length": 37
+    },
+    {
+        "skill": "economics of natural disasters",
+        "skill_length": 30,
+        "machine_label": "https://www.wikidata.org/wiki/-1",
+        "label_length": 32
+    }
+]

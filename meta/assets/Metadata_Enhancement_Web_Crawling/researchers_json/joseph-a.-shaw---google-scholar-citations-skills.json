@@ -1,0 +1,20 @@
+[
+    {
+        "skill": "Optical remote sensing & propagation",
+        "skill_length": 36,
+        "machine_label": "https://www.wikidata.org/wiki/-1",
+        "label_length": 32
+    },
+    {
+        "skill": "optics in nature",
+        "skill_length": 16,
+        "machine_label": "https://www.wikidata.org/wiki/-1",
+        "label_length": 32
+    },
+    {
+        "skill": "optical design",
+        "skill_length": 14,
+        "machine_label": "https://www.wikidata.org/wiki/Q7098863",
+        "label_length": 38
+    }
+]
