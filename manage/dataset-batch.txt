@@ -1,0 +1,94 @@
+<?php
+// Script to retrieve datasets as .txt file
+
+// Check if the $date variable was passed in url, escape the string for mysql, and validate that it is a numeric value - pass $date value to select record
+$date = isset($_GET['date']) ? trim(htmlentities(strip_tags($_GET['date']))) : null;
+
+// Set database parameters and connect to database
+include_once '../meta/assets/dbconnect.inc';
+
+$query = "
+	SELECT * from datasets
+	WHERE dataset_temporalCoverage LIKE '$date%'
+	AND status = 'a'
+	ORDER BY recordInfo_recordIdentifier
+";
+
+// Run query for metadata items, store in $getCitationText variable
+$getCitationText = mysql_query($query);
+$num_rows = mysql_num_rows($getCitationText);
+
+// Display message if no items are returned
+if ($num_rows == 0)
+{
+	echo 'There were no metadata items returned from the current request.'."\n";
+	exit;
+}
+elseif (!$getCitationText)
+{
+	die('Error retrieving metadata items from database! '.'Error: '. mysql_error() .'');
+}
+
+while ($row = mysql_fetch_object($getCitationText))
+{
+	$id = $row->recordInfo_recordIdentifier;
+	$datasetName = $row->dataset_name;
+	$publishDate = $row->dataset_temporalCoverage;
+	$doi = $row->dataset_doi;
+	$repositoryName = $row->dataset_repositoryName;
+
+	// Get creators
+	$creatorQuery = "
+		SELECT creator_key, creator_name
+		FROM creators
+		WHERE recordInfo_recordIdentifier = $id
+		ORDER BY creator_key
+	";
+
+	$getCreators = @mysql_query($creatorQuery);
+
+	if (!$getCreators)
+	{
+		die('Error retrieving metadata items from database! ' . 'Error: ' .  mysql_error() . '');
+	}
+
+	$numCreators = mysql_num_rows($getCreators);
+
+	$creators = "";
+	$creatorCount = 0;
+	while ($creatorRow = mysql_fetch_object($getCreators))
+	{
+		$creatorCount++;
+		switch ($creatorCount)
+		{
+			case 1:
+				$creators = $creatorRow->creator_name;
+				break;
+			case $numCreators:
+				$creators .= ', and ' . reverseNames($creatorRow->creator_name);
+				break;
+			default:
+				$creators .= ', ' . reverseNames($creatorRow->creator_name);
+		}
+	}
+?>
+
+<?php echo $creators; ?>. <b><?php echo $datasetName; ?>.</b> <i><?php echo $repositoryName; ?>.</i> <?php echo $publishDate; ?>. <?php if (strlen($doi) > 3) { echo $doi; } else { echo "DOI not available."; }?><br/><br/>
+
+<?php
+}
+
+function reverseNames($name)
+{
+	$commaPosition = strpos($name, ',');
+
+	if (!$commaPosition)
+	{
+		return $name;
+	}
+	else
+	{
+		return trim(substr($name, $commaPosition + 1)) . ' ' . trim(substr($name, 0, $commaPosition));
+	}
+}
+?>
