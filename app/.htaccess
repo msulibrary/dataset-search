@@ -1,0 +1,30 @@
+AddType application/x-httpd-php .txt .csv
+
+#force text file to process as php
+<files dataset-batch.txt>
+ForceType application/x-httpd-php
+</files>
+<files dataset-batch.csv>
+ForceType application/x-httpd-php
+</files>
+#force xml files to process as php
+<files feed.xml>
+ForceType application/x-httpd-php
+</files>
+<files item.json>
+ForceType application/x-httpd-php
+</files>
+<files sitemap.xml>
+ForceType application/x-httpd-php
+</files>
+#make sure mod_rewrite is enabled for all rules below
+#Options +FollowSymLinks
+RewriteEngine On
+#remove need to have .php extension in filename
+RewriteCond %{ENV:REDIRECT_STATUS} 200
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ $1.php [QSA]
+#change arc.lib.montana.edu/msu-dataset-search/item.php?id=5 to arc.lib.montana.edu/msu-dataset-search/item/5
+RewriteBase /msu-dataset-search/
+RewriteRule ^item/([0-9]+) item.php?id=$1 [NC,QSA]

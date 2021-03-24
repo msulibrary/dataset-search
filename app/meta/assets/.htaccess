@@ -1,0 +1,4 @@
+<FILESMATCH "">
+     order deny,allow
+     deny from all
+</FILESMATCH>

@@ -1,0 +1,11 @@
+{
+  "name": "MSU Dataset Search",
+  "short_name": "DataSearch",
+  "description": "MSU Dataset Search holds a set of curated datasets from creators affiliated with Montana State University.",
+  "lang": "en-US",
+  "start_url": "/msu-dataset-search/?utm_source=homescreen",
+  "scope": "/msu-dataset-search/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#003f7f"
+}
