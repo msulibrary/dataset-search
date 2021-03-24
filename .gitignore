@@ -1,2 +1,5 @@
+# Mac OS system files
+.DS_Store
+
 # Optional Dependency directories
 meta/assets/db_grant_statement.txt
