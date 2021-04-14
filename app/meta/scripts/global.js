@@ -2,7 +2,7 @@
 const navLinks = document.getElementById("nav").getElementsByTagName("a");
 //console.log(navLinks);
 //setting active to 0 will highlight first nav item as current
-let active = 0;
+let active = null;
 for (let i = 0; i < navLinks.length; i++) {
   if (navLinks[i].href === document.URL) {
     active = i;
