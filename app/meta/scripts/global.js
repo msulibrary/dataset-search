@@ -1,12 +1,12 @@
 //set active <nav> style for current page
-var navLinks = document.getElementById("nav").getElementsByTagName("a");
+const navLinks = document.getElementById("nav").getElementsByTagName("a");
 //console.log(navLinks);
 //setting active to 0 will highlight first nav item as current
 let active = 0;
 for (let i = 0; i < navLinks.length; i++) {
-    if (navLinks[i].href === document.URL) {
-        active = i;
-    }
+  if (navLinks[i].href === document.URL) {
+    active = i;
+  }
 }
 //confirm variable is not null + not an empty string before changing className
 if (active !== null && active !== '') {
