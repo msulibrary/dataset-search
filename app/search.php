@@ -2,7 +2,7 @@
 // Purpose: This code searches the database for the user specified search terms and displays matching items
 
 // Set Title, Description, and Keywords
-$pageTitle = 'MSU Dataset Search Search';
+$pageTitle = 'Search - MSU Dataset Search';
 $pageDescription = 'Search results from the MSU Dataset Search database.';
 $pageKeywords = 'MSU, data';
 
@@ -28,7 +28,7 @@ $maxLengthDescription = 150;
  *       Each query element type can map to one or more comma-separated datasets fields.
  */
 $queryToDatasetsMap = array (
-        "q"          => "creator_name, dataset_name, dataset_keywords, dataset_description",
+        "q"          => "creator_name, dataset_name, dataset_keywords, dataset_description, name_affiliation_msuCollege, name_affiliation_msuDepartment, name_affiliation_otherAffiliation",
         "keyword"    => "dataset_keywords",
         "date"       => "dataset_temporalCoverage",
         "creator"    => "creator_name",
@@ -80,7 +80,7 @@ class QueryData
          *  $element - element from query string
          *  $value - corresponding value from query string
          */
-function add($element, $value)
+	function add($element, $value)
         {
                 // Save value in queryArray
                 if (!isset($this->queryArray[$element])) {
@@ -202,7 +202,7 @@ function add($element, $value)
                         $continuation = ", ";
                 }
 
-                $queryString .= " FROM datasets NATURAL JOIN creators WHERE (status = 'a') ";
+                $queryString .= " FROM datasets NATURAL JOIN creators NATURAL JOIN affiliations WHERE (status = 'a') ";
 
                 foreach ($this->queryArray as $element => $value) {
                         // Get datasets field(s) that correspond(s) to search element
@@ -235,7 +235,7 @@ function add($element, $value)
          */
         function getSqlQueryCountString()
         {
-                $queryCountString = "SELECT COUNT(*) AS matchCount FROM datasets NATURAL JOIN creators WHERE (status = 'a') ";
+                $queryCountString = "SELECT COUNT(*) AS matchCount FROM datasets NATURAL JOIN creators NATURAL JOIN affiliations WHERE (status = 'a') ";
 
                 foreach ($this->queryArray as $element => $value) {
                         // Get datasets field(s) that correspond(s) to search element
@@ -245,7 +245,7 @@ function add($element, $value)
                         $value = mysql_real_escape_string($value);
 
                         $queryCountString .= "AND MATCH ($datasetsField) AGAINST ('$value' IN BOOLEAN MODE) ";
- }
+ 		}
 
                 // Finish the query count string
                 $queryCountString .= "GROUP BY datasets.recordInfo_recordIdentifier;";
