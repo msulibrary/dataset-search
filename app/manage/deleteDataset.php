@@ -22,14 +22,14 @@ include '../meta/assets/dbconnect-admin.inc';
 
 // Logic based on hidden submit_check field in form
 if (isset($_POST['submit_check'])) {
-	process_form();
+	process_form($dbConn);
 }
 else {
-	show_form();
+	show_form($dbConn);
 }
 
 // Do something when form is submitted
-function process_form() {
+function process_form($dbConn) {
 
 	// Declare the variable for if/else control structures below
 	$delete = $_REQUEST['delete'];
@@ -48,15 +48,15 @@ function process_form() {
 
 		// Get creator_keys from creators table
 		if (!($nameKeys =
-			@mysql_query("SELECT creator_key FROM creators WHERE recordInfo_recordIdentifier = '$id'"))) {
-			$error = mysql_error();
+			$dbConn->query("SELECT creator_key FROM creators WHERE recordInfo_recordIdentifier = '$id'"))) {
+			$error = $dbConn->error;
 		}
 
 		// Use creator_keys to delete affiliations
 		if ($error == "") {
-			while ($row = mysql_fetch_object($nameKeys)) {
-				if (!@mysql_query("DELETE FROM affiliations WHERE creator_key = '" . $row->creator_key . "';")) {
-					$error = mysql_error();
+			while ($row = $nameKeys->fetch_object()) {
+				if (!$dbConn->query("DELETE FROM affiliations WHERE creator_key = '" . $row->creator_key . "';")) {
+					$error = $dbConn->error;
 					break;
 				}
 			}
@@ -64,19 +64,19 @@ function process_form() {
 
 		// Use recordInfo_recordIdentifier to delete creators
 		if ($error == "") {
-			if (!@mysql_query("DELETE FROM creators WHERE recordInfo_recordIdentifier = '$id';")) {
-				$error = mysql_error();
+			if (!@$dbConn->query("DELETE FROM creators WHERE recordInfo_recordIdentifier = '$id';")) {
+				$error = $dbConn->error;
 			}
 		}
 
 		// Delete entry from datasets table
 		if ($error == "") {
-			if (@mysql_query("DELETE FROM datasets WHERE recordInfo_recordIdentifier='$id'")) {
+			if (@$dbConn->query("DELETE FROM datasets WHERE recordInfo_recordIdentifier='$id'")) {
 		  		echo '<h2>Metadata Item deleted successfully!</h2>'."\n";
 		  		echo '<h2><a href="./">Return to Manage MSU Dataset Search Home</a></h2>'."\n";
 			}
 			else {
-				$error = mysql_error();
+				$error = $dbConn->error;
 			}
 		}
 
@@ -99,7 +99,7 @@ function process_form() {
 }
 
 // Display the form
-function show_form() {
+function show_form($dbConn) {
 
 	// Get id value from url
 	$id = $_GET['id'];
@@ -108,13 +108,13 @@ function show_form() {
 //	$referer = htmlspecialchars($_SERVER['HTTP_REFERER']);
 
 	// Query datasets table for dataset_name associated with id
-	$getMetadata = @mysql_query("SELECT dataset_name FROM datasets WHERE recordInfo_recordIdentifier='$id'");
+	$getMetadata = $dbConn->query("SELECT dataset_name FROM datasets WHERE recordInfo_recordIdentifier='$id'");
 	if (!$getMetadata) {
-		die("<h2>Error fetching item details: " . mysql_error() . "</h2>");
+		die("<h2>Error fetching item details: " . $dbConn->error . "</h2>");
 	}
 	// Store resource data in an array
-	$row = mysql_fetch_array($getMetadata);
-	$dataset_name = stripslashes($row['dataset_name']);
+	$row = $getMetadata->fetch_object();
+	$dataset_name = stripslashes($row->dataset_name);
 
 	// Print out html form block
 	echo "<h2>Are you sure you want to delete <strong>$dataset_name</strong>?</h2>\n";
