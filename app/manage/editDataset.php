@@ -73,22 +73,24 @@ class CreatorData
 			$this->affiliations[$creatorNum][$affiliationNum][0] = "";
 			$this->affiliations[$creatorNum][$affiliationNum][1] = "";
 			$this->affiliations[$creatorNum][$affiliationNum][2] = "";
+			$this->affiliations[$creatorNum][$affiliationNum][3] = "";
+			$this->affiliations[$creatorNum][$affiliationNum][4] = "";
 		}
 		$this->affiliations[$creatorNum][$affiliationNum][$affiliationType] = $affiliation;
 	}
 
-	function saveCreatorData() {
+	function saveCreatorData($dbConn) {
 		foreach ($this->creator as $creatorNum => $creator) {
 
 			// First, insert new creator into database
-			$insertCreator = "INSERT INTO creators SET recordInfo_recordIdentifier = '$this->id', creator_name = \"" . addslashes($creator[0][0]) . "\", creator_orcid = \"" . addslashes($creator[0][1]) . "\", creator_type = \"" . addslashes($creator[0][2]) . "\", creator_url = \"" . addslashes($creator[0][3]) . "\", creator_contactPoint = \"" . addslashes($creator[0][4]) . "\"";
+			$insertCreator = "INSERT INTO creators SET recordInfo_recordIdentifier = '$this->id', creator_name = \"" . addslashes($creator[0][0]) . "\", creator_orcid = \"" . addslashes($creator[0][1]) . "\", creator_type = \"" . addslashes($creator[0][2]) . "\", creator_url = \"" . addslashes($creator[0][3]) . "\", creator_contactPoint = \"" . addslashes(trim($creator[0][4])) . "\"";
 
-			if (@mysql_query($insertCreator)) {
+			if (@$dbConn->query($insertCreator)) {
 				// Get creatorKey
-				$this->creatorKey = mysql_insert_id();
+				$this->creatorKey = $dbConn->insert_id;
 			}
 			else {
-				die("<h2>Error inserting into datasets: " . mysql_error() . "</h2>");
+				die("<h2>Error inserting into datasets: " . $dbConn->error . "</h2>");
 			}
 			
 			// Then, insert affiliations into database
@@ -96,12 +98,14 @@ class CreatorData
 				foreach ($this->affiliations[$creatorNum] as $affiliationNum => $affiliation) {
 					if ((isset($affiliation[0]) && $affiliation[0] != "") ||
 						(isset($affiliation[1]) && $affiliation[1] != "") ||
-						(isset($affiliation[2]) && $affiliation[2] != "")) {
+						(isset($affiliation[2]) && $affiliation[2] != "") ||
+						(isset($affiliation[3]) && $affiliation[3] != "") ||
+						(isset($affiliation[4]) && $affiliation[4] != "")) {
 						$insertAffiliation = "
 							INSERT INTO affiliations
-							SET creator_key = \"$this->creatorKey\", name_affiliation_msuCollege = \"" . $affiliation[0] . "\", name_affiliation_msuDepartment = \"" . $affiliation[1] . "\", name_affiliation_otherAffiliation = \"" . $affiliation[2] . "\"";
-						if (!@mysql_query($insertAffiliation)) {
-							die("<h2>Error inserting into datasets: " . mysql_error() . "</h2>");
+							SET creator_key = \"$this->creatorKey\", name_affiliation_msuCollege = \"" . $affiliation[0] . "\", name_affiliation_msuCollege_abbr = \"" . $affiliation[1] . "\", name_affiliation_msuDepartment = \"" . $affiliation[2] . "\", name_affiliation_msuDepartment_abbr = \"" . $affiliation[3] . "\",name_affiliation_otherAffiliation = \"" . trim($affiliation[4]) . "\"";
+						if (!$dbConn->query($insertAffiliation)) {
+							die("<h2>Error inserting into datasets: " . $dbConn->error . "</h2>");
 						}
 					}
 				}
@@ -123,7 +127,7 @@ if (isset($_POST['submit'])):
 // Check if the $id variable was passed from form, escape the string for mysql,
 // and validate that it is a numeric value - pass id value to hidden form field
 if (isset($_POST['id']) and is_numeric($_POST['id'])) {
-	$id = strip_tags(mysql_real_escape_string((int)$_POST['id']));
+	$id = strip_tags($dbConn->real_escape_string((int)$_POST['id']));
 }
 else {
 	echo 'Query type not supported.';
@@ -134,10 +138,14 @@ else {
 $dataset_name = $_POST['dataset_name'];
 $dataset_doi = $_POST['dataset_doi'];
 $dataset_repositoryName = $_POST['dataset_repositoryName'];
+$dataset_funder = $_POST['dataset_funder'];
+$dataset_funder_identifier = $_POST['dataset_funder_identifier'];
+$dataset_grant_identifier = $_POST['dataset_grant_identifier'];
 $dataset_url = $_POST['dataset_url'];
 $dataset_description = $_POST['dataset_description'];
 $dataset_keywords = $_POST['dataset_keywords'];
 $dataset_temporalCoverage = $_POST['dataset_temporalCoverage'];
+$dataset_datePublished = $_POST['dataset_datePublished'];
 $dataset_spatialCoverage = $_POST['dataset_spatialCoverage'];
 $dataset_category1 = $_POST['dataset_category1'];
 $dataset_category1_uri = $_POST['dataset_category1_uri'];
@@ -151,17 +159,25 @@ $dataset_category5 = $_POST['dataset_category5'];
 $dataset_category5_uri = $_POST['dataset_category5_uri'];
 $dataset_encodingFormat = $_POST['dataset_encodingFormat'];
 $dataset_license = $_POST['dataset_license'];
+$dataset_conditionsOfAccess = $_POST['dataset_conditionsOfAccess'];
+$dataset_conditionsOfAccess_status = $_POST['dataset_conditionsOfAccess_status'];
 $dataset_version = $_POST['dataset_version'];
 $dataset_sameAs = $_POST['dataset_sameAs'];
+$dataset_relatedMaterial = $_POST['dataset_relatedMaterial'];
 $status = $_POST['status'];
 
 // Escape special characters for submission to database - convert HTML
 // special characters in database value for use in an HTML document.
 
 $dataset_name = addslashes($dataset_name);
+$dataset_funder = addslashes($dataset_funder);
+$dataset_funder_identifier = addslashes($dataset_funder_identifier);
+$dataset_grant_identifier = addslashes($dataset_grant_identifier);
 $dataset_repositoryName = addslashes($dataset_repositoryName);
 $dataset_description = addslashes($dataset_description);
 $dataset_keywords = addslashes($dataset_keywords);
+$dataset_conditionsOfAccess = addslashes($dataset_conditionsOfAccess);
+$dataset_relatedMaterial = addslashes($dataset_relatedMaterial);
 
 // Validate name, description fields as containing data
 if ($dataset_name == '')
@@ -177,10 +193,14 @@ $editDataset = "UPDATE datasets SET
 	dataset_name = \"$dataset_name\",
 	dataset_doi = \"$dataset_doi\",
 	dataset_repositoryName = \"$dataset_repositoryName\",
+	dataset_funder = \"$dataset_funder\",
+	dataset_funder_identifier = \"$dataset_funder_identifier\",
+	dataset_grant_identifier = \"$dataset_grant_identifier\",
 	dataset_url = \"$dataset_url\",
 	dataset_description = \"$dataset_description\",
 	dataset_keywords = \"$dataset_keywords\",
 	dataset_temporalCoverage = \"$dataset_temporalCoverage\",
+	dataset_datePublished = \"$dataset_datePublished\",
 	dataset_spatialCoverage = \"$dataset_spatialCoverage\",
 	dataset_category1 = \"$dataset_category1\",
 	dataset_category1_uri = \"$dataset_category1_uri\",
@@ -194,35 +214,38 @@ $editDataset = "UPDATE datasets SET
 	dataset_category5_uri = \"$dataset_category5_uri\",
 	dataset_encodingFormat = \"$dataset_encodingFormat\",
 	dataset_license = \"$dataset_license\",
+	dataset_conditionsOfAccess = \"$dataset_conditionsOfAccess\",
+	dataset_conditionsOfAccess_status = \"$dataset_conditionsOfAccess_status\",
 	dataset_version = \"$dataset_version\",
 	dataset_sameAs = \"$dataset_sameAs\",
+	dataset_relatedMaterial = \"$dataset_relatedMaterial\",
 	status = \"$status\"
 	WHERE recordInfo_recordIdentifier=\"$id\"";
 
 //	relatedItem_originInfo_publisher = \"$relatedItem_originInfo_publisher\",
 //	relatedItem_originInfo_dateCreated = \"$relatedItem_originInfo_dateCreated\",
 
-if (!@mysql_query($editDataset)) {
-	die("<h2>Error updating datasets: " . mysql_error() . "</h2>");
+if (!$dbConn->query($editDataset)) {
+	die("<h2>Error updating datasets: " . $dbConn->error . "</h2>");
 }
 
 // Now delete previous creators and affiliations
 
 // Get creator_keys from creators table
-if (!($creatorKeys = @mysql_query("SELECT creator_key FROM creators WHERE recordInfo_recordIdentifier = '$id'"))) {
-	die("<h2>Error selecting datasets: " . mysql_error() . "</h2>");
+if (!($creatorKeys = $dbConn->query("SELECT creator_key FROM creators WHERE recordInfo_recordIdentifier = '$id'"))) {
+	die("<h2>Error selecting datasets: " . $dbConn->error . "</h2>");
 }
 
 // Use creator_keys to delete affiliations
-while ($row = mysql_fetch_object($creatorKeys)) {
-	if (!@mysql_query("DELETE FROM affiliations WHERE creator_key = \"" . $row->creator_key . "\";")) {
-		die("<h2>Error deleting from datasets: " . mysql_error() . "</h2>");
+while ($row = $creatorKeys->fetch_object()) {
+	if (!$dbConn->query("DELETE FROM affiliations WHERE creator_key = \"" . $row->creator_key . "\";")) {
+		die("<h2>Error deleting from datasets: " . $dbConn->error . "</h2>");
 	}
 }
 
 // Use recordInfo_recordIdentifier to delete creators
-if (!@mysql_query("DELETE FROM creators WHERE recordInfo_recordIdentifier = '$id';")) {
-	die("<h2>Error deleting from datasets: " . mysql_error() . "</h2>");
+if (!@$dbConn->query("DELETE FROM creators WHERE recordInfo_recordIdentifier = '$id';")) {
+	die("<h2>Error deleting from datasets: " . $dbConn->error . "</h2>");
 }
 
 // Now store creators and affiliations
@@ -267,7 +290,7 @@ foreach ($_POST as $key => $value)
 	}
 }
 
-$creatorData->saveCreatorData();
+$creatorData->saveCreatorData($dbConn);
 
 // Clear form variables if page is refreshed to avoid reposting data to database
 unset($_POST);
@@ -285,7 +308,7 @@ else:
 // Check if the $id variable was passed in url, escape the string for mysql,
 // and validate that it is a numeric value - pass id value to hidden form field
 if (isset($_GET['id']) and is_numeric($_GET['id'])) {
-	$id = strip_tags(mysql_real_escape_string((int)$_GET['id']));
+	$id = strip_tags($dbConn->real_escape_string((int)$_GET['id']));
 }
 else {
 	echo 'Query type not supported.';
@@ -293,23 +316,27 @@ else {
 }
 
 // Run and hold query data for populating editing form
-$getMetadataItem = @mysql_query("SELECT * FROM datasets WHERE recordInfo_recordIdentifier='$id'");
+$getMetadataItem = $dbConn->query("SELECT * FROM datasets WHERE recordInfo_recordIdentifier='$id'");
 
 if (!$getMetadataItem) {
-	die("<h2>Error fetching Metadata Item details: " . mysql_error() . "</h2>");
+	die("<h2>Error fetching Metadata Item details: " . $dbConn->error . "</h2>");
 }
 
 // Store query result in an array
-$row = mysql_fetch_object($getMetadataItem);
+$row = $getMetadataItem->fetch_object();
 
 // Define form variables for printing guide table data in editing form
 $dataset_name = $row->dataset_name;
 $dataset_doi = $row->dataset_doi;
 $dataset_repositoryName = $row->dataset_repositoryName;
+$dataset_funder = $row->dataset_funder;
+$dataset_funder_identifier = $row->dataset_funder_identifier;
+$dataset_grant_identifier = $row->dataset_grant_identifier;
 $dataset_url = $row->dataset_url;
 $dataset_description = $row->dataset_description;
 $dataset_keywords = $row->dataset_keywords;
 $dataset_temporalCoverage = $row->dataset_temporalCoverage;
+$dataset_datePublished = $row->dataset_datePublished;
 $dataset_spatialCoverage = $row->dataset_spatialCoverage;
 $dataset_category1 = $row->dataset_category1;
 $dataset_category1_uri = $row->dataset_category1_uri;
@@ -323,8 +350,11 @@ $dataset_category5 = $row->dataset_category5;
 $dataset_category5_uri = $row->dataset_category5_uri;
 $dataset_encodingFormat = $row->dataset_encodingFormat;
 $dataset_license = $row->dataset_license;
+$dataset_conditionsOfAccess = $row->dataset_conditionsOfAccess;
+$dataset_conditionsOfAccess_status = $row->dataset_conditionsOfAccess_status;
 $dataset_version = $row->dataset_version;
 $dataset_sameAs = $row->dataset_sameAs;
+$dataset_relatedMaterial = $row->dataset_relatedMaterial;
 $status = $row->status;
 
 ?>
@@ -335,22 +365,22 @@ $status = $row->status;
 
 // Get creators and affiliations
 $query = "
-	SELECT creators.creator_name, creators.creator_orcid, creators.creator_type, creators.creator_url, creators.creator_contactPoint, affiliations.name_affiliation_msuCollege, affiliations.name_affiliation_msuDepartment, affiliations.name_affiliation_otherAffiliation
+	SELECT creators.creator_key, creators.creator_name, creators.creator_orcid, creators.creator_type, creators.creator_url, creators.creator_contactPoint, affiliations.name_affiliation_msuCollege, affiliations.name_affiliation_msuCollege_abbr, affiliations.name_affiliation_msuDepartment, affiliations.name_affiliation_msuDepartment_abbr, affiliations.name_affiliation_otherAffiliation
 	FROM creators LEFT JOIN affiliations
 	ON creators.creator_key = affiliations.creator_key
 	WHERE creators.recordInfo_recordIdentifier='$id'
 	ORDER BY creators.creator_key, affiliations.affiliation_key;
 ";
-$getMetadataCreatorInfo = @mysql_query($query);
+$getMetadataCreatorInfo = $dbConn->query($query);
 
 if (!$getMetadataCreatorInfo) {
-	die("<h2>Error fetching Metadata creator info: " . mysql_error() . "</h2>");
+	die("<h2>Error fetching Metadata creator info: " . $dbConn->error . "</h2>");
 }
 
 $creatorNum = -1;
 $prev_creator = "";
 echo "var creators = new Array();\n";
-while ($row = mysql_fetch_object($getMetadataCreatorInfo)) {
+while ($row = $getMetadataCreatorInfo->fetch_object()) {
 	$creator = $row->creator_name;
 
 	if ($creator != $prev_creator) {
@@ -366,14 +396,14 @@ while ($row = mysql_fetch_object($getMetadataCreatorInfo)) {
 		$prev_creator = $creator;
 		$affiliationNum = 0;
 	}
-	if ($row->name_affiliation_msuCollege != "" || $row->name_affiliation_msuDepartment != "" || $row->name_affiliation_otherAffiliation != "") {
+	if ($row->name_affiliation_msuCollege != "" || $row->name_affiliation_msuCollege_abbr != "" || $row->name_affiliation_msuDepartment != "" || $row->name_affiliation_msuDepartment_abbr != "" || $row->name_affiliation_otherAffiliation != "") {
 		echo "creators[$creatorNum][" . ++$affiliationNum . "] = new Array();\n";
 		echo "creators[$creatorNum][$affiliationNum][0] = \"" . str_replace("\"", "&quot;", $row->name_affiliation_msuCollege) . "\";\n";
+		echo "creators[$creatorNum][$affiliationNum][1] = \"" . str_replace("\"", "&quot;", $row->name_affiliation_msuCollege_abbr) . "\";\n";
 //		echo "creators[$creatorNum][$affiliationNum][0] = \"" . htmlentities($row->name_affiliation_msuCollege, ENT_COMPAT, ini_get("default_charset"), false) . "\";\n";
-		echo "creators[$creatorNum][$affiliationNum][1] = \"" . str_replace("\"", "&quot;", $row->name_affiliation_msuDepartment) . "\";\n";
-//		echo "creators[$creatorNum][$affiliationNum][1] = \"" . htmlentities($row->name_affiliation_msuDepartment, ENT_COMPAT, ini_get("default_charset"), false) . "\";\n";
-		echo "creators[$creatorNum][$affiliationNum][2] = \"" . str_replace("\"", "&quot;", $row->name_affiliation_otherAffiliation) . "\";\n";
-//		echo "creators[$creatorNum][$affiliationNum][2] = \"" . htmlentities($row->name_affiliation_otherAffiliation, ENT_COMPAT, ini_get("default_charset"), false) . "\";\n";
+		echo "creators[$creatorNum][$affiliationNum][2] = \"" . str_replace("\"", "&quot;", $row->name_affiliation_msuDepartment) . "\";\n";
+		echo "creators[$creatorNum][$affiliationNum][3] = \"" . str_replace("\"", "&quot;", $row->name_affiliation_msuDepartment_abbr) . "\";\n";
+		echo "creators[$creatorNum][$affiliationNum][4] = \"" . htmlentities($row->name_affiliation_otherAffiliation, ENT_COMPAT, ini_get("default_charset"), false) . "\";\n";
 	}
 }
 
@@ -412,6 +442,15 @@ function confirmDelete(id)
 <h3><label for="dataset_repositoryName" title="dataset_repositoryName">Dataset Repository Name</label></h3>
 <input class="text" type="text" id="dataset_repositoryName" name="dataset_repositoryName" size="40" maxlength="255" value="<?php echo $dataset_repositoryName; ?>" />
 
+<h3><label for="dataset_funder" title="dataset_funder">Dataset Funder</label></h3>
+<input class="text" type="text" id="dataset_funder" name="dataset_funder" size="40" maxlength="255" value="<?php echo $dataset_funder; ?>" />
+
+<h3><label for="dataset_funder_identifier" title="dataset_funder_identifier">Dataset Funder Identifier</label></h3>
+<input class="text" type="text" id="dataset_funder_identifier" name="dataset_funder_identifier" size="40" maxlength="255" value="<?php echo $dataset_funder_identifier; ?>" />
+
+<h3><label for="dataset_grant_identifier" title="dataset_grant_identifier">Dataset Grant Identifier</label></h3>
+<input class="text" type="text" id="dataset_grant_identifier" name="dataset_grant_identifier" size="40" maxlength="255" value="<?php echo $dataset_grant_identifier; ?>" />
+
 <h3><label for="dataset_url" title="dataset_url">Dataset URL</label></h3>
 <input class="text" type="text" id="dataset_url" name="dataset_url" size="40" maxlength="300" value="<?php echo $dataset_url; ?>" />
 
@@ -424,11 +463,14 @@ function confirmDelete(id)
 <h3><label for="dataset_keywords" title="dataset_keywords">Dataset Keywords (comma delimited)</label></h3>
 <input class="text" type="text" id="dataset_keywords" name="dataset_keywords" size="40" maxlength="255" value="<?php echo $dataset_keywords; ?>" />
 
-<h3><label for="dataset_temporalCoverage" title="dataset_temporalCoverage">Dataset Publication Date (YYYY-MM-DD)</label></h3>
+<h3><label for="dataset_datePublished" title="dataset_datePublished">Dataset Publication Date (YYYY-MM-DD)</label></h3>
+<input class="text" type="text" id="dataset_datePublished" name="dataset_datePublished" size="40" maxlength="30" value="<?php echo $dataset_datePublished; ?>" />
+
+<h3><label for="dataset_temporalCoverage" title="dataset_temporalCoverage">Date range for data collection</label></h3>
 <input class="text" type="text" id="dataset_temporalCoverage" name="dataset_temporalCoverage" size="40" maxlength="30" value="<?php echo $dataset_temporalCoverage; ?>" />
 
 <h3><label for="dataset_spatialCoverage" title="dataset_spatialCoverage">Dataset GeoShape Box Coordinates or Latitude / Longitude</label></h3>
-<input class="text" type="text" id="dataset_spatialCoverage" name="dataset_spatialCoverage" size="40" maxlength="30" value="<?php echo $dataset_spatialCoverage; ?>" />
+<input class="text" type="text" id="dataset_spatialCoverage" name="dataset_spatialCoverage" size="40" maxlength="255" value="<?php echo $dataset_spatialCoverage; ?>" />
 <?php
 
 for ($i = 1; $i <= 5; $i++)
@@ -473,8 +515,26 @@ for ($i = 1; $i <= 5; $i++)
 <h3><label for="dataset_license" title="dataset_license">Dataset Copyright Conditions</label></h3>
 <input class="text" type="text" id="dataset_license" name="dataset_license" size="40" maxlength="255" value="<?php echo $dataset_license; ?>" />
 
+<h3><label for="dataset_conditionsOfAccess" title="dataset_conditionsOfAccess">Dataset Conditions of Access</label></h3>
+<input class="text" type="text" id="dataset_conditionsOfAccess" name="dataset_conditionsOfAccess" size="40" maxlength="255" value="<?php echo $dataset_conditionsOfAccess; ?>" />
+
+<h3><label for="dataset_conditionsOfAccess_status" title="dataset_conditionsOfAccess_status">Conditions of Access Status</label></h3>
+<p class="adminNote"><span>Current access status is <?php echo($dataset_conditionsOfAccess_status); ?>. Edit access status below.</span></p>
+<ul class="block">
+<?php
+
+	echo '<li><input type="radio" name="dataset_conditionsOfAccess_status" value="o" ' .
+		(($dataset_conditionsOfAccess_status == 'o') ? 'checked="checked"' : '') . ' /> o = Open</li>'."\n";
+	echo '<li><input type="radio" name="dataset_conditionsOfAccess_status" value="r" ' .
+		(($dataset_conditionsOfAccess_status == 'r') ? 'checked="checked"' : '') . ' /> r = Restricted</li>'."\n";
+?>
+</ul>
+
 <h3><label for="dataset_version" title="dataset_version">Dataset Version Number</label></h3>
 <input class="text" type="text" id="dataset_version" name="dataset_version" size="40" maxlength="30" value="<?php echo $dataset_version; ?>" />
+
+<h3><label for="dataset_relatedMaterial" title="dataset_relatedMaterial">Dataset Related Material(Include DOIs when available)</label></h3>
+<input class="text" type="text" id="dataset_relatedMaterial" name="dataset_relatedMaterial" size="40" maxlength="255" value="<?php echo $dataset_relatedMaterial; ?>" />
 
 <h3><label for="status" title="status">Object Status</label></h3>
 <p class="adminNote"><span>Object's current status is <?php echo($status); ?>. Edit object's status below.</span></p>
