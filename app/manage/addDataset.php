@@ -20,6 +20,9 @@ include_once '../meta/assets/dbconnect-admin.inc';
 // Get list of Google Scholar Categories
 include './categories.php';
 
+//Declare id earlier in the file
+$id = 0;
+
 // CreatorData class
 class CreatorData
 {
@@ -67,24 +70,31 @@ class CreatorData
 			$this->affiliations[$creatorNum][$affiliationNum][0] = "";
 			$this->affiliations[$creatorNum][$affiliationNum][1] = "";
 			$this->affiliations[$creatorNum][$affiliationNum][2] = "";
+			$this->affiliations[$creatorNum][$affiliationNum][3] = "";
+			$this->affiliations[$creatorNum][$affiliationNum][4] = "";
 		}
 		$this->affiliations[$creatorNum][$affiliationNum][$affiliationType] = $affiliation;
 	}
 
-	function saveCreatorData()
+	function saveCreatorData($dbConn)
 	{
+		//$this->$dbConn = $dbConn;
+		//print_r($this->creator);
 		foreach ($this->creator as $creatorNum => $creator)
 		{
 			// First, insert new creator into database
 			$insertCreator = "INSERT INTO creators SET recordInfo_recordIdentifier = '$this->id', creator_name = \"" . addslashes($creator[0][0]) . "\", creator_orcid = \"" . addslashes($creator[0][1]) . "\", creator_type = \"" . addslashes($creator[0][2]) . "\", creator_url = \"" . addslashes($creator[0][3]) . "\", creator_contactPoint = \"" . addslashes($creator[0][4]) . "\"";
-			if (@mysql_query($insertCreator))
+			//echo $insertCreator;
+			//echo("Insert Creator: " . $insertCreator . "</br>");
+
+			if ($dbConn->query($insertCreator))
 			{
 				// Get creatorKey
-				$this->creatorKey = mysql_insert_id();
+				$this->creatorKey = $dbConn->insert_id;
 			}
 			else
 			{
-				die("<h2>Error inserting MODS: " . mysql_error() . "</h2>");
+				die("<h2>Error inserting MODS: " . $dbConn->error . "</h2>");
 			}
 			
 			// Then, insert affiliations into database
@@ -94,14 +104,19 @@ class CreatorData
 				{
 					if ((isset($affiliation[0]) && $affiliation[0] != "") ||
 						(isset($affiliation[1]) && $affiliation[1] != "") ||
-						(isset($affiliation[2]) && $affiliation[2] != ""))
+						(isset($affiliation[2]) && $affiliation[2] != "") ||
+						(isset($affiliation[3]) && $affiliation[3] != "") ||
+						(isset($affiliation[4]) && $affiliation[4] != ""))
 					{
 						$insertAffiliation = "
                             INSERT INTO affiliations
-                            SET creator_key = \"$this->creatorKey\", name_affiliation_msuCollege = \"" . $affiliation[0] . "\", name_affiliation_msuDepartment = \"" . $affiliation[1] . "\", name_affiliation_otherAffiliation = \"" . $affiliation[2] . "\"";
-						if (!@mysql_query($insertAffiliation))
+                            SET creator_key = \"$this->creatorKey\", name_affiliation_msuCollege = \"" . $affiliation[0] . "\", name_affiliation_msuCollege_abbr = \"" . $affiliation[1] . "\", name_affiliation_msuDepartment = \"" . $affiliation[2] . "\", name_affiliation_msuDepartment_abbr = \"" . $affiliation[3] . "\", name_affiliation_otherAffiliation = \"" . $affiliation[4] . "\"";
+							
+							//echo("Insert Affiliation: " . $insertAffiliation . "</br>");
+
+						if (!$dbConn->query($insertAffiliation))
 						{
-							die("<h2>Error inserting MODS: " . mysql_error() . "</h2>");
+							die("<h2>Error inserting MODS: " . $dbConn->error . "</h2>");
 						}
 					}
 				}
@@ -122,10 +137,14 @@ if (isset($_POST['submit'])):
 $dataset_name = $_POST['dataset_name'];
 $dataset_doi = $_POST['dataset_doi'];
 $dataset_repositoryName = $_POST['dataset_repositoryName'];
+$dataset_funder = $_POST['dataset_funder'];
+$dataset_funder_identifier = $_POST['dataset_funder_identifier'];
+$dataset_grant_identifier = $_POST['dataset_grant_identifier'];
 $dataset_url = $_POST['dataset_url'];
 $dataset_description = $_POST['dataset_description'];
 $dataset_keywords = $_POST['dataset_keywords'];
 $dataset_temporalCoverage = $_POST['dataset_temporalCoverage'];
+$dataset_datePublished = $_POST['dataset_datePublished'];
 $dataset_spatialCoverage = $_POST['dataset_spatialCoverage'];
 $dataset_category1 = $_POST['dataset_category1'];
 $dataset_category1_uri = $_POST['dataset_category1_uri'];
@@ -139,8 +158,11 @@ $dataset_category5 = $_POST['dataset_category5'];
 $dataset_category5_uri = $_POST['dataset_category5_uri'];
 $dataset_encodingFormat = $_POST['dataset_encodingFormat'];
 $dataset_license = $_POST['dataset_license'];
+$dataset_conditionsOfAccess = $_POST['dataset_conditionsOfAccess'];
+$dataset_conditionsOfAccess_status = $_POST['dataset_conditionsOfAccess_status'];
 $dataset_version = $_POST['dataset_version'];
 $dataset_sameAs = $_POST['dataset_sameAs'];
+$dataset_relatedMaterial = $_POST['dataset_relatedMaterial'];
 $status = $_POST['status'];
 
 // Escape special characters for submission to database - convert HTML
@@ -149,6 +171,11 @@ $status = $_POST['status'];
 $dataset_name = addslashes($dataset_name);
 $dataset_description = addslashes($dataset_description);
 $dataset_keywords = addslashes($dataset_keywords);
+$dataset_funder = addslashes($dataset_funder);
+$dataset_funder_identifier = addslashes($dataset_funder_identifier);
+$dataset_grant_identifier = addslashes($dataset_grant_identifier);
+$dataset_conditionsOfAccess = addslashes($dataset_conditionsOfAccess);
+$dataset_relatedMaterial = addslashes($dataset_relatedMaterial);
 
 // Validate name, description fields as containing data
 if ($dataset_name == '') {
@@ -163,10 +190,14 @@ $addDataset = "INSERT INTO datasets SET
 	dataset_name = \"$dataset_name\",
 	dataset_doi = \"$dataset_doi\",
 	dataset_repositoryName = \"$dataset_repositoryName\",
+	dataset_funder = \"$dataset_funder\",
+	dataset_funder_identifier = \"$dataset_funder_identifier\",
+	dataset_grant_identifier = \"$dataset_grant_identifier\",
 	dataset_url = \"$dataset_url\",
 	dataset_description = \"$dataset_description\",
 	dataset_keywords = \"$dataset_keywords\",
 	dataset_temporalCoverage = \"$dataset_temporalCoverage\",
+	dataset_datePublished = \"$dataset_datePublished\",
 	dataset_spatialCoverage = \"$dataset_spatialCoverage\",
 	dataset_category1 = \"$dataset_category1\",
 	dataset_category1_uri = \"$dataset_category1_uri\",
@@ -180,19 +211,21 @@ $addDataset = "INSERT INTO datasets SET
 	dataset_category5_uri = \"$dataset_category5_uri\",
 	dataset_encodingFormat = \"$dataset_encodingFormat\",
 	dataset_license = \"$dataset_license\",
+	dataset_conditionsOfAccess = \"$dataset_conditionsOfAccess\",
+	dataset_conditionsOfAccess_status = \"$dataset_conditionsOfAccess_status\",
 	dataset_version = \"$dataset_version\",
 	dataset_sameAs = \"$dataset_sameAs\",
+	dataset_relatedMaterial = \"$dataset_relatedMaterial\",
 	status = \"$status\"";
 
-$id = 0;
-if (@mysql_query($addDataset))
+if ($dbConn->query($addDataset))
 {
 	// Get recordInfo_recordIdentifier
-	$id = mysql_insert_id();
+	$id = $dbConn->insert_id;
 }
 else
 {
-	die("<h2>Error adding MODS: " . mysql_error() . "</h2>");
+	die("<h2>Error adding MODS: " . $dbConn->error . "</h2>");
 }
 
 // Now store creators and affiliations
@@ -204,6 +237,12 @@ foreach ($_POST as $key => $value)
 	{
 		$creatorNum = str_replace("creator_name", "", $key);
 		$creatorData->setCreatorName($creatorNum, addslashes($value));
+	}
+
+	if (strstr($key, "creator_orcid"))
+	{
+		$creatorNum = str_replace("creator_orcid", "", $key);
+		$creatorData->setCreatorOrcid($creatorNum, addslashes($value));
 	}
 
 	if (strstr($key, "creator_type"))
@@ -227,11 +266,13 @@ foreach ($_POST as $key => $value)
 	if (strstr($key, "affiliation"))
 	{
 		preg_match("/affiliation(\d+)-(\d+)-(\d+)/", $key, $matches);
+		
 		$creatorData->setAffiliation($matches[1], $matches[2], $matches[3], addslashes($value));
+
 	}
 }
 
-$creatorData->saveCreatorData();
+$creatorData->saveCreatorData($dbConn);
 
 echo('<h2>Dataset metadata item added successfully.</h2>');
 
@@ -272,6 +313,8 @@ creators[0][1] = new Array();
 creators[0][1][0] = "";
 creators[0][1][1] = "";
 creators[0][1][2] = "";
+creators[0][1][3] = "";
+creators[0][1][4] = "";
 
 $(document).ready(function () {
     displayCreators();
@@ -299,6 +342,15 @@ $(document).ready(function () {
 <h3><label for="dataset_repositoryName" title="dataset_repositoryName">Dataset Repository Name</label></h3>
 <input class="text" type="text" id="dataset_repositoryName" name="dataset_repositoryName" size="40" maxlength="255" value="" />
 
+<h3><label for="dataset_funder" title="dataset_funder">Dataset Funder</label></h3>
+<input class="text" type="text" id="dataset_funder" name="dataset_funder" size="40" maxlength="255" value="" />
+
+<h3><label for="dataset_funder_identifier" title="dataset_funder_identifier">Dataset Funder Identifier</label></h3>
+<input class="text" type="text" id="dataset_funder_identifier" name="dataset_funder_identifier" size="40" maxlength="255" value="" />
+
+<h3><label for="dataset_grant_identifier" title="dataset_grant_identifier">Dataset Grant Identifier</label></h3>
+<input class="text" type="text" id="dataset_grant_identifier" name="dataset_grant_identifier" size="40" maxlength="255" value="" />
+
 <h3><label for="dataset_url" title="dataset_url">Dataset URL</label></h3>
 <input class="text" type="text" id="dataset_url" name="dataset_url" size="40" maxlength="300" value="" />
 
@@ -311,11 +363,16 @@ $(document).ready(function () {
 <h3><label for="dataset_keywords" title="dataset_keywords">Dataset Keywords (comma delimited)</label></h3>
 <input class="text" type="text" id="dataset_keywords" name="dataset_keywords" size="40" maxlength="255" value="" />
 
-<h3><label for="dataset_temporalCoverage" title="dataset_temporalCoverage">Dataset Publication Date (YYYY-MM-DD)</label></h3>
+<h3><label for="dataset_datePublished" title="dataset_datePublished">Dataset Publication Date (YYYY-MM-DD)</label></h3>
+<input class="text" type="text" id="dataset_datePublished" name="dataset_datePublished" size="40" maxlength="30" value="" />
+
+<h3><label for="dataset_temporalCoverage" title="dataset_temporalCoverage">Date range for data collection</label></h3>
 <input class="text" type="text" id="dataset_temporalCoverage" name="dataset_temporalCoverage" size="40" maxlength="30" value="" />
 
+
+
 <h3><label for="dataset_spatialCoverage" title="dataset_spatialCoverage">Dataset GeoShape Box Coordinates or Latitude / Longitude</label></h3>
-<input class="text" type="text" id="dataset_spatialCoverage" name="dataset_spatialCoverage" size="40" maxlength="30" value="" />
+<input class="text" type="text" id="dataset_spatialCoverage" name="dataset_spatialCoverage" size="40" maxlength="255" value="" />
 <?php
 
 for ($i = 1; $i <= 5; $i++)
@@ -354,8 +411,18 @@ for ($i = 1; $i <= 5; $i++)
 <h3><label for="dataset_license" title="dataset_license">Dataset Copyright Conditions</label></h3>
 <input class="text" type="text" id="dataset_license" name="dataset_license" size="40" maxlength="255" value="" />
 
+<h3><label for="dataset_conditionsOfAccess" title="dataset_conditionsOfAccess">Dataset Conditions of Access</label></h3>
+<input class="text" type="text" id="dataset_conditionsOfAccess" name="dataset_conditionsOfAccess" size="40" maxlength="255" value="" />
+<h3><label for="dataset_conditionsOfAccess_status" title="dataset_conditionsOfAccess_status">Conditions of Access Status</label></h3>
+<ul class="block">
+	<li><input type="radio" name="dataset_conditionsOfAccess_status" value="o" checked="checked"/> o = Open</li>
+	<li><input type="radio" name="dataset_conditionsOfAccess_status" value="r" /> r = Restricted</li>
+</ul>
 <h3><label for="dataset_version" title="dataset_version">Dataset Version Number</label></h3>
 <input class="text" type="text" id="dataset_version" name="dataset_version" size="40" maxlength="30" value="" />
+
+<h3><label for="dataset_relatedMaterial" title="dataset_relatedMaterial">Dataset Related Material(Include DOIs when available)</label></h3>
+<input class="text" type="text" id="dataset_relatedMaterial" name="dataset_relatedMaterial" size="40" maxlength="255" value="" />
 
 <h3><label for="status" title="status">Object's Status</label></h3>
 <ul class="block">
